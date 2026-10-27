@@ -1,6 +1,17 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 0 concluída** (git init, estrutura `infra/` `src/` `test/`, ajv + jest). Nenhum recurso AWS criado ainda.
+Status: **Fase 1 concluída.**
+
+## Recursos criados
+| Fase | Recurso | ID / nome |
+|---|---|---|
+| 1 | KMS RSA_4096 ENCRYPT_DECRYPT | `70912db1-817a-4a37-9206-b72271d39cbb` (`alias/ingest-payload`) |
+| 1 | S3 raw (SSE-S3, versionado, expira em 30d) | `ingest-raw-019141478952` |
+| 1 | S3 nok (idem) | `ingest-nok-019141478952` |
+| 1 | DynamoDB cadastro (PK `deviceId`) | `ingest-devices` |
+| 1 | DynamoDB dados finais (PK `deviceId`, SK `sk` = `<timestamp>#<messageId>`) | `ingest-data` |
+
+Script: `infra/01-fundacao.sh` (idempotente). Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC.
 Região: us-east-2 (confirmar em AWS Settings > View all projects > Overview > Additional Info > Region)
 Linguagem: Node.js 22.x (CommonJS, AWS SDK JS v3) · Provisionamento: AWS CLI
 
