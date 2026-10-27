@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 3 concluída.**
+Status: **Fase 4 concluída.**
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -20,6 +20,12 @@ Status: **Fase 3 concluída.**
 | 3 | IAM role (sqs receive/delete, `s3:PutObject` em `raw/*`, logs) | `ingest-raw-writer-role` |
 | 3 | Event Source Mapping (lote 10, janela 5 s, ReportBatchItemFailures) | `469a9ead-ee12-4e8a-b44a-010443d323ae` |
 | 3 | Log group (retenção 14d) | `/aws/lambda/ingest-raw-writer` |
+| 4 | SQS eventos S3 do raw (+DLQ); policy só aceita o bucket raw | `ingest-validate-queue`, `ingest-validate-queue-dlq` |
+| 4 | SQS OK / NOK (+DLQs) | `ingest-ok-queue`, `ingest-nok-queue` (+ `-dlq`) |
+| 4 | Notificação S3 `raw/*.json` → validate-queue | `raw-to-validate` |
+| 4 | Lambda Node 22 arm64, 256 MB, 30 s (com ajv) | `ingest-decrypt-validate` |
+| 4 | IAM role (s3:GetObject raw/*, kms:Decrypt na chave, SendMessage ok/nok) | `ingest-decrypt-validate-role` |
+| 4 | Event Source Mapping | `ac981315-42d4-4ed2-9529-713acc7a0c07` |
 
 Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh`, `infra/03-raw-writer.sh` (idempotentes; o 03 também republica o código).
 Formato do raw: `raw/AAAA/MM/DD/<messageId>.json` → `{messageId, receivedAt (epoch ms), sourceIp, requestId, envelope}`. O API Gateway envia `receivedAt`, `sourceIp` e `requestId` como message attributes do SQS. Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
@@ -28,6 +34,12 @@ Formato do raw: `raw/AAAA/MM/DD/<messageId>.json` → `{messageId, receivedAt (e
 `POST /ingest`, headers `x-api-key` e `Content-Type: application/json`. Corpo (envelope, base64):
 `{"v":1, "ek":<chave AES cifrada RSA-OAEP-SHA256>, "iv":<12 bytes>, "tag":<16 bytes GCM>, "ct":<payload AES-256-GCM>}`
 Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 415 content-type · 429 throttling · 502 falha no SQS.
+
+### Validação (Fase 4)
+- Schema em `src/decrypt-validate/schema.js`. Obrigatórios: `deviceId` (`[A-Za-z0-9_-]{1,64}`), `timestamp` (ISO 8601), `type` (só `telemetry`). `data` é opcional: `lat` [−90, 90], `lon` [−180, 180], `battery` inteiro [0, 100], sensores `Tamper|Motion|Impact|InternalMoisture|MetallicMaterial|Jamming` ∈ {0, 1}. Campos extras são rejeitados.
+- Motivos de NOK: `ek_invalida`, `falha_decifrar`, `json_invalido`, `schema_invalido` (com `details`). Erros temporários (KMS/S3/SQS) geram retry e, depois de 3 tentativas, vão para a DLQ.
+- Mensagem OK: `{messageId, receivedAt, sourceIp, requestId, rawKey, payload}` (payload decifrado, protegido pela SSE-SQS). Mensagem NOK: os mesmos metadados + `reason` e `details` (sem payload).
+- Simulador do celular: `node tools/encrypt-envelope.js '<json>' | curl ... --data-binary @-`
 
 ### Comandos úteis
 ```bash
