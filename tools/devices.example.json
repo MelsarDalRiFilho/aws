@@ -1,0 +1,17 @@
+[
+  {
+    "deviceId": "abc123", "ownerId": "888", "personId": "777", "exclusionAreaId": "", "stayAreaId": "989",
+    "scheduleId": "", "contractId": "", "model": "Tracker T1", "firmwareVersionId": "", "messageLayoutId": "",
+    "status": "active", "installedAt": "2026-01-10"
+  },
+  {
+    "deviceId": "dev002", "ownerId": "888", "personId": "778", "exclusionAreaId": "120", "stayAreaId": "990",
+    "scheduleId": "45", "contractId": "C-2026-001", "model": "Tracker T1", "firmwareVersionId": "fw-1.4.2", "messageLayoutId": "ml-1",
+    "status": "active", "installedAt": "2026-03-02"
+  },
+  {
+    "deviceId": "dev003", "ownerId": "889", "personId": "779", "exclusionAreaId": "", "stayAreaId": "",
+    "scheduleId": "", "contractId": "", "model": "Tracker T2", "firmwareVersionId": "", "messageLayoutId": "",
+    "status": "inactive", "installedAt": "2025-11-20"
+  }
+]

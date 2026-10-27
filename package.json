@@ -14,9 +14,11 @@
     "ajv": "^8.20.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1158.0",
     "@aws-sdk/client-kms": "^3.1158.0",
     "@aws-sdk/client-s3": "^3.1158.0",
     "@aws-sdk/client-sqs": "^3.1158.0",
+    "@aws-sdk/lib-dynamodb": "^3.1158.0",
     "jest": "^30.5.2"
   }
 }

@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 5 concluída.**
+Status: **Fase 6 concluída** (fluxo de dados completo).
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -29,6 +29,10 @@ Status: **Fase 5 concluída.**
 | 5 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-nok-writer` |
 | 5 | IAM role (s3:GetObject raw/*, s3:PutObject nok/*) | `ingest-nok-writer-role` |
 | 5 | Event Source Mapping (nok-queue) | `724d5c29-e265-4c89-b171-0193b125ae0a` |
+| 6 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-enrich` |
+| 6 | IAM role (GetItem devices, PutItem data, SendMessage nok) | `ingest-enrich-role` |
+| 6 | Event Source Mapping (ok-queue) | `db668250-7e1e-4384-aacc-7894c873153c` |
+| 6 | Cadastro de exemplo | `abc123`, `dev002` (ativos) e `dev003` (inativo) em `ingest-devices` |
 
 Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh`, `infra/03-raw-writer.sh` (idempotentes; o 03 também republica o código).
 Formato do raw: `raw/AAAA/MM/DD/<messageId>.json` → `{messageId, receivedAt (epoch ms), sourceIp, requestId, envelope}`. O API Gateway envia `receivedAt`, `sourceIp` e `requestId` como message attributes do SQS. Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
@@ -43,6 +47,11 @@ Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 
 - Motivos de NOK: `ek_invalida`, `falha_decifrar`, `json_invalido`, `schema_invalido` (com `details`). Erros temporários (KMS/S3/SQS) geram retry e, depois de 3 tentativas, vão para a DLQ.
 - Mensagem OK: `{messageId, receivedAt, sourceIp, requestId, rawKey, payload}` (payload decifrado, protegido pela SSE-SQS). Mensagem NOK: os mesmos metadados + `reason` e `details` (sem payload).
 - Repositório NOK (Fase 5): `nok/AAAA/MM/DD/<messageId>.json` → `{metadados, reason, details, envelope}`, com o envelope ainda cifrado e copiado do raw, para reprocessar mesmo depois que o raw expirar. Se o raw já tiver expirado, grava com `envelope: null`. Retenção de 30 dias (decisão mantida).
+### Enriquecimento (Fase 6)
+- Cadastro `ingest-devices`: `deviceId, ownerId, personId, exclusionAreaId, stayAreaId, scheduleId, contractId, model, firmwareVersionId, messageLayoutId, status, installedAt`. Alimentado por `node tools/seed-devices.js [arquivo.json]` (padrão: `tools/devices.example.json`).
+- Item em `ingest-data`: `{deviceId, sk=<timestamp>#<messageId>, timestamp, type, data, device:{retrato do cadastro sem deviceId/status}, messageId, receivedAt, sourceIp, requestId, rawKey}`. Gravação idempotente (`attribute_not_exists(sk)`).
+- NOK: `dispositivo_nao_cadastrado` e `dispositivo_inativo` (status ≠ `active`).
+- Latência medida de ponta a ponta: ~45–75 s, somando a janela de lote de 5 s × 4 filas, a entrega do evento S3 e os cold starts. Pode ser ajustada na Fase 7/8.
 - Simulador do celular: `node tools/encrypt-envelope.js '<json>' | curl ... --data-binary @-`
 
 ### Comandos úteis
