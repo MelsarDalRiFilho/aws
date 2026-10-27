@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 4 concluída.**
+Status: **Fase 5 concluída.**
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -26,6 +26,9 @@ Status: **Fase 4 concluída.**
 | 4 | Lambda Node 22 arm64, 256 MB, 30 s (com ajv) | `ingest-decrypt-validate` |
 | 4 | IAM role (s3:GetObject raw/*, kms:Decrypt na chave, SendMessage ok/nok) | `ingest-decrypt-validate-role` |
 | 4 | Event Source Mapping | `ac981315-42d4-4ed2-9529-713acc7a0c07` |
+| 5 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-nok-writer` |
+| 5 | IAM role (s3:GetObject raw/*, s3:PutObject nok/*) | `ingest-nok-writer-role` |
+| 5 | Event Source Mapping (nok-queue) | `724d5c29-e265-4c89-b171-0193b125ae0a` |
 
 Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh`, `infra/03-raw-writer.sh` (idempotentes; o 03 também republica o código).
 Formato do raw: `raw/AAAA/MM/DD/<messageId>.json` → `{messageId, receivedAt (epoch ms), sourceIp, requestId, envelope}`. O API Gateway envia `receivedAt`, `sourceIp` e `requestId` como message attributes do SQS. Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
@@ -39,6 +42,7 @@ Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 
 - Schema em `src/decrypt-validate/schema.js`. Obrigatórios: `deviceId` (`[A-Za-z0-9_-]{1,64}`), `timestamp` (ISO 8601), `type` (só `telemetry`). `data` é opcional: `lat` [−90, 90], `lon` [−180, 180], `battery` inteiro [0, 100], sensores `Tamper|Motion|Impact|InternalMoisture|MetallicMaterial|Jamming` ∈ {0, 1}. Campos extras são rejeitados.
 - Motivos de NOK: `ek_invalida`, `falha_decifrar`, `json_invalido`, `schema_invalido` (com `details`). Erros temporários (KMS/S3/SQS) geram retry e, depois de 3 tentativas, vão para a DLQ.
 - Mensagem OK: `{messageId, receivedAt, sourceIp, requestId, rawKey, payload}` (payload decifrado, protegido pela SSE-SQS). Mensagem NOK: os mesmos metadados + `reason` e `details` (sem payload).
+- Repositório NOK (Fase 5): `nok/AAAA/MM/DD/<messageId>.json` → `{metadados, reason, details, envelope}`, com o envelope ainda cifrado e copiado do raw, para reprocessar mesmo depois que o raw expirar. Se o raw já tiver expirado, grava com `envelope: null`. Retenção de 30 dias (decisão mantida).
 - Simulador do celular: `node tools/encrypt-envelope.js '<json>' | curl ... --data-binary @-`
 
 ### Comandos úteis
