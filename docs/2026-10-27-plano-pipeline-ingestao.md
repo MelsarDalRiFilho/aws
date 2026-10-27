@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 6 concluída** (fluxo de dados completo).
+Status: **Fase 7 concluída** (fluxo completo + observabilidade).
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -32,6 +32,12 @@ Status: **Fase 6 concluída** (fluxo de dados completo).
 | 6 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-enrich` |
 | 6 | IAM role (GetItem devices, PutItem data, SendMessage nok) | `ingest-enrich-role` |
 | 6 | Event Source Mapping (ok-queue) | `db668250-7e1e-4384-aacc-7894c873153c` |
+| 7 | SNS de alertas (e-mail melsar.filho@gmail.com) | `arn:aws:sns:us-east-2:019141478952:ingest-alerts` |
+| 7 | Role de logs do API Gateway (configuração da conta) | `apigateway-cloudwatch-logs-role` |
+| 7 | Access logs do stage dev (JSON, 14d) | `/aws/apigateway/ingest-api` |
+| 7 | Metric filters → `Ingest/Nok` (decrypt-validate + enrich), `Ingest/Ok` (enrich) | `nok`, `ok` |
+| 7 | Alarmes (8 métricas, dentro das 10 gratuitas) | `ingest-dlq-mensagens`, `ingest-lambda-erros`, `ingest-fila-parada`, `ingest-api-5xx`, `ingest-nok-alto` |
+| 7 | Dashboard | `ingest` |
 | 6 | Cadastro de exemplo | `abc123`, `dev002` (ativos) e `dev003` (inativo) em `ingest-devices` |
 
 Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh`, `infra/03-raw-writer.sh` (idempotentes; o 03 também republica o código).
@@ -52,6 +58,12 @@ Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 
 - Item em `ingest-data`: `{deviceId, sk=<timestamp>#<messageId>, timestamp, type, data, device:{retrato do cadastro sem deviceId/status}, messageId, receivedAt, sourceIp, requestId, rawKey}`. Gravação idempotente (`attribute_not_exists(sk)`).
 - NOK: `dispositivo_nao_cadastrado` e `dispositivo_inativo` (status ≠ `active`).
 - Latência medida de ponta a ponta: ~45–75 s, somando a janela de lote de 5 s × 4 filas, a entrega do evento S3 e os cold starts. Pode ser ajustada na Fase 7/8.
+### Observabilidade (Fase 7)
+- Alarmes: DLQ > 0 (soma das 4 DLQs) · Lambda Errors > 0 (métrica da conta toda, 1 métrica) · idade da mensagem mais antiga da ingest-queue > 300 s · API 5XX > 0 · Nok > 20 em 5 min. Todos notificam no ALARM e no OK; dados ausentes contam como "não violado".
+- Teste: 25 payloads inválidos → `ingest-nok-alto` foi para ALARM em ~2 min (datapoint 25).
+- Dashboard: https://us-east-2.console.aws.amazon.com/cloudwatch/home?region=us-east-2#dashboards/dashboard/ingest
+- Lição: `--patch-operations` na sintaxe abreviada não aceita valor com JSON; use a forma JSON completa.
+- **Risco identificado: replay.** O mesmo envelope enviado 25 vezes foi aceito 25 vezes (cada um gera um messageId novo). Mitigação sugerida: incluir um nonce ou janela de tempo no payload cifrado e rejeitar repetições.
 - Simulador do celular: `node tools/encrypt-envelope.js '<json>' | curl ... --data-binary @-`
 
 ### Comandos úteis
