@@ -45,6 +45,17 @@ aws s3api put-bucket-notification-configuration --bucket "$BUCKET" --notificatio
     \"Events\":[\"s3:ObjectCreated:*\"],
     \"Filter\":{\"Key\":{\"FilterRules\":[{\"Name\":\"prefix\",\"Value\":\"raw/\"},{\"Name\":\"suffix\",\"Value\":\".json\"}]}}}]}"
 
+# --- Tabela anti-replay (nonces expiram via TTL) ---
+NONCES_TABLE=${PREFIX}-nonces
+if ! aws dynamodb describe-table --table-name "$NONCES_TABLE" >/dev/null 2>&1; then
+  aws dynamodb create-table --table-name "$NONCES_TABLE" --billing-mode PAY_PER_REQUEST --tags $TAGS \
+    --attribute-definitions AttributeName=id,AttributeType=S --key-schema AttributeName=id,KeyType=HASH >/dev/null
+  aws dynamodb wait table-exists --table-name "$NONCES_TABLE"
+  aws dynamodb update-time-to-live --table-name "$NONCES_TABLE" \
+    --time-to-live-specification Enabled=true,AttributeName=expiresAt >/dev/null
+  echo "Tabela criada: $NONCES_TABLE"
+fi
+
 # --- Log group ---
 aws logs create-log-group --log-group-name "$LOG_GROUP" --tags Project=ingest,Env=dev 2>/dev/null || true
 aws logs put-retention-policy --log-group-name "$LOG_GROUP" --retention-in-days 14
@@ -63,6 +74,7 @@ aws iam put-role-policy --role-name "$ROLE" --policy-name app --policy-document 
     {\"Effect\":\"Allow\",\"Action\":\"sqs:SendMessage\",\"Resource\":[\"${SQS_ARN}:${PREFIX}-ok-queue\",\"${SQS_ARN}:${PREFIX}-nok-queue\"]},
     {\"Effect\":\"Allow\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${BUCKET}/raw/*\"},
     {\"Effect\":\"Allow\",\"Action\":\"kms:Decrypt\",\"Resource\":\"${KMS_KEY_ARN}\"},
+    {\"Effect\":\"Allow\",\"Action\":\"dynamodb:PutItem\",\"Resource\":\"arn:aws:dynamodb:${AWS_REGION}:${ACCOUNT_ID}:table/${NONCES_TABLE}\"},
     {\"Effect\":\"Allow\",\"Action\":[\"logs:CreateLogStream\",\"logs:PutLogEvents\"],\"Resource\":\"arn:aws:logs:${AWS_REGION}:${ACCOUNT_ID}:log-group:${LOG_GROUP}:*\"}]}"
 [ -n "${NEW_ROLE:-}" ] && sleep 10
 
@@ -73,7 +85,7 @@ cp src/decrypt-validate/*.js package.json package-lock.json "$BUILD"/
 (cd "$BUILD" && npm ci --omit=dev --silent && zip -q -r ../${FN}.zip . -x package-lock.json)
 
 # --- Função ---
-ENV="Variables={RAW_BUCKET=${BUCKET},KMS_KEY_ID=${KMS_KEY_ARN},OK_QUEUE_URL=${OK_URL},NOK_QUEUE_URL=${NOK_URL}}"
+ENV="Variables={RAW_BUCKET=${BUCKET},KMS_KEY_ID=${KMS_KEY_ARN},OK_QUEUE_URL=${OK_URL},NOK_QUEUE_URL=${NOK_URL},NONCES_TABLE=${NONCES_TABLE},MAX_AGE_SECONDS=86400,MAX_FUTURE_SECONDS=300}"
 if ! aws lambda get-function --function-name "$FN" >/dev/null 2>&1; then
   aws lambda create-function --function-name "$FN" \
     --runtime nodejs22.x --architectures arm64 --handler index.handler \

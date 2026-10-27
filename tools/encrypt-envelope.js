@@ -23,7 +23,11 @@ function encryptEnvelope(plaintext, publicKeyDer) {
 }
 
 async function main() {
-  const plaintext = process.argv[2] ?? require('node:fs').readFileSync(0, 'utf8');
+  const payload = JSON.parse(process.argv[2] ?? require('node:fs').readFileSync(0, 'utf8'));
+  // Como o app: nonce aleatório e timestamp atual quando não informados.
+  payload.nonce ??= crypto.randomBytes(16).toString('base64url');
+  payload.timestamp ??= new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const plaintext = JSON.stringify(payload);
   const kms = new KMSClient({ region: process.env.AWS_REGION || 'us-east-2' });
   const { PublicKey } = await kms.send(new GetPublicKeyCommand({ KeyId: 'alias/ingest-payload' }));
   console.log(JSON.stringify(encryptEnvelope(plaintext, Buffer.from(PublicKey))));

@@ -3,10 +3,11 @@ const flag = { type: 'integer', enum: [0, 1] };
 
 module.exports = {
   type: 'object',
-  required: ['deviceId', 'timestamp', 'type'],
+  required: ['deviceId', 'timestamp', 'type', 'nonce'],
   additionalProperties: false,
   properties: {
     deviceId: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,64}$' },
+    nonce: { type: 'string', pattern: '^[A-Za-z0-9_-]{16,64}$' },
     timestamp: {
       type: 'string',
       pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?(Z|[+-]\\d{2}:\\d{2})$',

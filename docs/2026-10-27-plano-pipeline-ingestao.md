@@ -32,6 +32,7 @@ Status: **Fase 7 concluída** (fluxo completo + observabilidade).
 | 6 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-enrich` |
 | 6 | IAM role (GetItem devices, PutItem data, SendMessage nok) | `ingest-enrich-role` |
 | 6 | Event Source Mapping (ok-queue) | `db668250-7e1e-4384-aacc-7894c873153c` |
+| 7+ | DynamoDB anti-replay (PK `id`, TTL `expiresAt`) | `ingest-nonces` |
 | 7 | SNS de alertas (e-mail melsar.filho@gmail.com) | `arn:aws:sns:us-east-2:019141478952:ingest-alerts` |
 | 7 | Role de logs do API Gateway (configuração da conta) | `apigateway-cloudwatch-logs-role` |
 | 7 | Access logs do stage dev (JSON, 14d) | `/aws/apigateway/ingest-api` |
@@ -63,7 +64,15 @@ Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 
 - Teste: 25 payloads inválidos → `ingest-nok-alto` foi para ALARM em ~2 min (datapoint 25).
 - Dashboard: https://us-east-2.console.aws.amazon.com/cloudwatch/home?region=us-east-2#dashboards/dashboard/ingest
 - Lição: `--patch-operations` na sintaxe abreviada não aceita valor com JSON; use a forma JSON completa.
-- **Risco identificado: replay.** O mesmo envelope enviado 25 vezes foi aceito 25 vezes (cada um gera um messageId novo). Mitigação sugerida: incluir um nonce ou janela de tempo no payload cifrado e rejeitar repetições.
+- **Risco identificado: replay.** O mesmo envelope enviado 25 vezes foi aceito 25 vezes. Corrigido na seção "Anti-replay" abaixo.
+
+### Anti-replay (entre as Fases 7 e 8)
+- **Contrato do app alterado:** `nonce` passou a ser **obrigatório** no payload cifrado (`[A-Za-z0-9_-]{16,64}`, aleatório por mensagem; ex.: 16 bytes em base64url).
+- Janela: `timestamp` até **24 h no passado** (buffer offline) e até **5 min no futuro** (diferença de relógio). Configurável via `MAX_AGE_SECONDS` e `MAX_FUTURE_SECONDS` na Lambda decrypt-validate.
+- Tabela `ingest-nonces` (PK `id` = `deviceId#nonce`, TTL `expiresAt` = chegada + 24 h + 5 min + 1 h). A gravação condicional `attribute_not_exists(id) OR messageId = :m` faz o retry da mesma mensagem não ser confundido com replay.
+- Novos motivos de NOK: `fora_da_janela`, `replay`.
+- Teste ponta a ponta: o mesmo envelope enviado 2× gerou 1 item em `ingest-data` e 1 NOK `replay` (processadas em paralelo, a primeira a gravar o nonce vence); um timestamp de 2 dias atrás gerou `fora_da_janela`.
+- `tools/encrypt-envelope.js` gera `nonce` e `timestamp` automaticamente quando não informados.
 - Simulador do celular: `node tools/encrypt-envelope.js '<json>' | curl ... --data-binary @-`
 
 ### Comandos úteis
