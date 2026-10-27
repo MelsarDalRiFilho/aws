@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 2 concluída.**
+Status: **Fase 3 concluída.**
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -10,15 +10,19 @@ Status: **Fase 2 concluída.**
 | 1 | S3 nok (idem) | `ingest-nok-019141478952` |
 | 1 | DynamoDB cadastro (PK `deviceId`) | `ingest-devices` |
 | 1 | DynamoDB dados finais (PK `deviceId`, SK `sk` = `<timestamp>#<messageId>`) | `ingest-data` |
-
 | 2 | SQS ingestão (visibility 180s, retenção 4d, SSE-SQS, redrive 3x) | `ingest-queue` |
 | 2 | SQS DLQ (retenção 14d) | `ingest-queue-dlq` |
 | 2 | IAM role (só `sqs:SendMessage` em `ingest-queue`) | `ingest-apigw-sqs-role` |
 | 2 | API REST regional, stage `dev` | `025tr6hq7g` → `https://025tr6hq7g.execute-api.us-east-2.amazonaws.com/dev/ingest` |
 | 2 | Usage plan (10 rps, burst 20, 10.000/dia) | `dvl1xp` |
 | 2 | API Key | `0wxuggrnvl` (`ingest-key`) |
+| 3 | Lambda Node 22 arm64, 256 MB, 30 s | `ingest-raw-writer` |
+| 3 | IAM role (sqs receive/delete, `s3:PutObject` em `raw/*`, logs) | `ingest-raw-writer-role` |
+| 3 | Event Source Mapping (lote 10, janela 5 s, ReportBatchItemFailures) | `469a9ead-ee12-4e8a-b44a-010443d323ae` |
+| 3 | Log group (retenção 14d) | `/aws/lambda/ingest-raw-writer` |
 
-Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh` (idempotentes). Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
+Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh`, `infra/03-raw-writer.sh` (idempotentes; o 03 também republica o código).
+Formato do raw: `raw/AAAA/MM/DD/<messageId>.json` → `{messageId, receivedAt (epoch ms), sourceIp, requestId, envelope}`. O API Gateway envia `receivedAt`, `sourceIp` e `requestId` como message attributes do SQS. Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
 
 ### Contrato da API (Fase 2)
 `POST /ingest`, headers `x-api-key` e `Content-Type: application/json`. Corpo (envelope, base64):

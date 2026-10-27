@@ -80,7 +80,7 @@ aws apigateway put-integration --rest-api-id "$API_ID" --resource-id "$RES_ID" -
   --uri "arn:aws:apigateway:${AWS_REGION}:sqs:path/${ACCOUNT_ID}/${QUEUE}" \
   --credentials "$ROLE_ARN" --passthrough-behavior NEVER \
   --request-parameters "integration.request.header.Content-Type=\"'application/x-www-form-urlencoded'\"" \
-  --request-templates '{"application/json":"Action=SendMessage&MessageBody=$util.urlEncode($input.body)"}' >/dev/null
+  --request-templates '{"application/json":"Action=SendMessage&MessageBody=$util.urlEncode($input.body)&MessageAttribute.1.Name=receivedAt&MessageAttribute.1.Value.DataType=Number&MessageAttribute.1.Value.StringValue=$context.requestTimeEpoch&MessageAttribute.2.Name=sourceIp&MessageAttribute.2.Value.DataType=String&MessageAttribute.2.Value.StringValue=$util.urlEncode($context.identity.sourceIp)&MessageAttribute.3.Name=requestId&MessageAttribute.3.Value.DataType=String&MessageAttribute.3.Value.StringValue=$context.requestId"}' >/dev/null
 
 for code in 200 502; do
   aws apigateway put-method-response --rest-api-id "$API_ID" --resource-id "$RES_ID" \
