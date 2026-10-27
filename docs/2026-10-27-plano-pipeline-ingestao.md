@@ -1,6 +1,6 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 1 concluída.**
+Status: **Fase 2 concluída.**
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
@@ -11,7 +11,31 @@ Status: **Fase 1 concluída.**
 | 1 | DynamoDB cadastro (PK `deviceId`) | `ingest-devices` |
 | 1 | DynamoDB dados finais (PK `deviceId`, SK `sk` = `<timestamp>#<messageId>`) | `ingest-data` |
 
-Script: `infra/01-fundacao.sh` (idempotente). Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC.
+| 2 | SQS ingestão (visibility 180s, retenção 4d, SSE-SQS, redrive 3x) | `ingest-queue` |
+| 2 | SQS DLQ (retenção 14d) | `ingest-queue-dlq` |
+| 2 | IAM role (só `sqs:SendMessage` em `ingest-queue`) | `ingest-apigw-sqs-role` |
+| 2 | API REST regional, stage `dev` | `025tr6hq7g` → `https://025tr6hq7g.execute-api.us-east-2.amazonaws.com/dev/ingest` |
+| 2 | Usage plan (10 rps, burst 20, 10.000/dia) | `dvl1xp` |
+| 2 | API Key | `0wxuggrnvl` (`ingest-key`) |
+
+Scripts: `infra/01-fundacao.sh`, `infra/02-entrada.sh` (idempotentes). Decisões: S3 com SSE-S3 (sem KMS própria); PITR desligado no POC; payload limitado a 200.000 caracteres em `ct`; uma API Key única.
+
+### Contrato da API (Fase 2)
+`POST /ingest`, headers `x-api-key` e `Content-Type: application/json`. Corpo (envelope, base64):
+`{"v":1, "ek":<chave AES cifrada RSA-OAEP-SHA256>, "iv":<12 bytes>, "tag":<16 bytes GCM>, "ct":<payload AES-256-GCM>}`
+Respostas: 200 `{"messageId"}` · 400 corpo inválido/>200k · 403 sem chave · 415 content-type · 429 throttling · 502 falha no SQS.
+
+### Comandos úteis
+```bash
+source infra/config.sh
+aws apigateway get-api-key --api-key 0wxuggrnvl --include-value --query value --output text   # valor da chave (não versionar)
+aws apigateway test-invoke-method --rest-api-id 025tr6hq7g --resource-id <id> --http-method POST --body '...'  # log da integração
+```
+
+### Lições da Fase 2
+- A associação da API Key ao Usage Plan leva cerca de 1 min para propagar (403 até lá). Um deploy novo leva alguns segundos.
+- O API Gateway não envia `aws:SourceAccount` ao assumir a role de integração; essa condição na trust policy causa "does not have permission to assume the provided role".
+- Template de resposta: use `$input.json('$.path')`, porque o `$input.path` sem aspas quebra o JSON ("Unable to transform response").
 Região: us-east-2 (confirmar em AWS Settings > View all projects > Overview > Additional Info > Region)
 Linguagem: Node.js 22.x (CommonJS, AWS SDK JS v3) · Provisionamento: AWS CLI
 
