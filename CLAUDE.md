@@ -8,7 +8,10 @@ Pipeline serverless de ingestão (plano em `docs/2026-10-27-plano-pipeline-inges
 
 - `package.json` usa `"type": "commonjs"` — use `require`/`module.exports`.
 - Estrutura: `infra/` (scripts AWS CLI; `source infra/config.sh` antes), `src/<lambda>/index.js` (runtime Node.js 22, AWS SDK v3 do runtime), `test/`.
-- Dependências: `ajv` (validação de schema); dev: `jest`. Testes: `npm test`.
+- Scripts `infra/0N-*.sh` são idempotentes e reexecutá-los republica o código das Lambdas. `infra/teardown.sh --confirm` remove tudo.
+- Dependências: `ajv` (validação de schema); dev: `jest` e `@aws-sdk/*` (já vêm no runtime da Lambda, não vão no zip).
+- Testes: `npm test` (unitários, com mocks do SDK). `npm run e2e` (contra o ambiente real; `-- --load N` para carga).
+- Ferramentas: `tools/encrypt-envelope.js` (simula o celular), `tools/seed-devices.js` (cadastro).
 - Repositório git (sem remote).
 
 ## Registro em `docs/`

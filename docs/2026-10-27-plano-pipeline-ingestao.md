@@ -1,6 +1,25 @@
 # Plano — Pipeline de ingestão de dados de dispositivos móveis
 
-Status: **Fase 7 concluída** (fluxo completo + observabilidade).
+Status: **todas as fases concluídas (0–8).** Recursos **mantidos** por decisão do usuário (2026-10-27).
+
+## Resultado final (Fase 8)
+- `npm test`: 32 testes unitários. `npm run e2e`: 6 cenários contra o ambiente real (válido, inativo, não cadastrado, schema inválido, fora da janela, replay). Todos passaram.
+- Carga (`npm run e2e -- --load 200`, concorrência 10): 148 aceitas e 52 com **429** (rate limit de 10 rps funcionando). **148/148 gravadas**; latência ponta a ponta p50 = 9,8 s, p95 = 34,7 s, máx. 53,6 s. DLQs vazias e alarmes em OK.
+- **O app precisa tratar 429** com retry e backoff exponencial (manter o mesmo envelope/nonce no retry é seguro: o 429 acontece antes da fila).
+- Remoção: `./infra/teardown.sh --confirm` (apaga dados; a chave KMS fica agendada para exclusão em 7 dias).
+
+### Custo estimado (POC, plano Free com US$ 100 de créditos)
+| Item | Custo |
+|---|---|
+| KMS: 1 chave assimétrica | ~US$ 1/mês + US$ 0,15 a cada 10 mil decrypts RSA (fora do free tier) |
+| Lambda, SQS, DynamoDB on-demand, S3, SNS, API Gateway | dentro do free tier neste volume |
+| CloudWatch: 5 alarmes (8 métricas), 1 dashboard, logs com 14 dias | dentro do free tier |
+
+### Próximos passos sugeridos (produção)
+1. Autenticação por dispositivo (HMAC por dispositivo ou Cognito); a API Key única serve só para cota.
+2. PITR no `ingest-data` e chave KMS própria nas filas OK (payload decifrado).
+3. Infraestrutura como código (CDK/CloudFormation) no lugar dos scripts CLI, e ambientes dev/prod separados.
+4. Reprocessamento do NOK (script que reenvia `envelope` do bucket NOK para a API).
 
 ## Recursos criados
 | Fase | Recurso | ID / nome |
