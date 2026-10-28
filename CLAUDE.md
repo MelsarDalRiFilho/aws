@@ -10,9 +10,24 @@ Pipeline serverless de ingestão (plano em `docs/2026-10-27-plano-pipeline-inges
 - Estrutura: `infra/` (scripts AWS CLI; `source infra/config.sh` antes), `src/<lambda>/index.js` (runtime Node.js 22, AWS SDK v3 do runtime), `test/`.
 - Scripts `infra/0N-*.sh` são idempotentes e reexecutá-los republica o código das Lambdas. `infra/teardown.sh --confirm` remove tudo.
 - Dependências: `ajv` (validação de schema); dev: `jest` e `@aws-sdk/*` (já vêm no runtime da Lambda, não vão no zip).
-- Testes: `npm test` (unitários, com mocks do SDK). `npm run e2e` (contra o ambiente real; `-- --load N` para carga).
+- Testes: `npm test` (unitários, com mocks do SDK). Um arquivo só: `npx jest test/enrich.test.js`; um caso só: `npx jest -t 'replay'`. `npm run e2e` roda contra o ambiente real (precisa de `AWS_PROFILE=aws-agent`; `-- --load N` para carga; leva cerca de 2–3 min).
 - Ferramentas: `tools/encrypt-envelope.js` (simula o celular), `tools/seed-devices.js` (cadastro).
-- Repositório git (sem remote).
+- Diagrama: `docs/arquitetura-pipeline-ingestao.svg` é a fonte; o PNG e o PDF são gerados a partir dele com o Chrome headless.
+- Repositório git (sem remote). O inventário de recursos com IDs, as decisões e as lições ficam em `docs/2026-10-27-plano-pipeline-ingestao.md`.
+
+## Arquitetura
+
+API Gateway (REST, integração direta com SQS, sem Lambda) → `ingest-queue` → `raw-writer` → S3 `raw/` → evento S3 → `ingest-validate-queue` → `decrypt-validate` → `ingest-ok-queue` → `enrich` → DynamoDB `ingest-data`. Os rejeitados vão para `ingest-nok-queue` → `nok-writer` → S3 `nok/`. Toda fila tem uma DLQ (`<fila>-dlq`, 3 tentativas).
+
+Convenções que atravessam as Lambdas (alterar uma exige revisar as outras):
+- **Erro de conteúdo ≠ erro temporário.** Conteúdo inválido vira mensagem NOK (com `reason`) e a mensagem SQS é consumida. Falhas de AWS (throttling etc.) são relançadas, e o handler devolve `batchItemFailures` (`ReportBatchItemFailures`) para gerar retry só daquele item. Em `decrypt-validate` isso é a classe `InvalidPayload`.
+- **Formato das mensagens entre etapas:** todas carregam os metadados `{messageId, receivedAt, sourceIp, requestId, rawKey}`. O `messageId` é o do SQS de entrada e é a chave de idempotência em todo o fluxo: nome dos objetos S3 (`raw|nok/AAAA/MM/DD/<messageId>.json`) e `sk = <timestamp>#<messageId>` em `ingest-data`. A fila OK acrescenta `payload` (decifrado); a NOK acrescenta `reason` e `details`. O `nok-writer` aceita NOK vindo tanto de `decrypt-validate` quanto de `enrich`.
+- **`receivedAt`/`sourceIp`/`requestId`** são injetados como message attributes pelo template de integração do API Gateway (`infra/02-entrada.sh`), não pelo app.
+- **Envelope do app** `{v, ek, iv, tag, ct}`: AES-256-GCM, com a chave AES cifrada com RSAES_OAEP_SHA_256 pela chave pública KMS `alias/ingest-payload`. O formato precisa bater em três lugares: o modelo `Envelope` do API Gateway (`02`), `src/decrypt-validate/index.js` e `tools/encrypt-envelope.js`.
+- **Schema do payload** em `src/decrypt-validate/schema.js` (`additionalProperties: false`; `nonce` é obrigatório). Anti-replay: janela de `timestamp` (`MAX_AGE_SECONDS`/`MAX_FUTURE_SECONDS`) + nonce único por dispositivo em `ingest-nonces`, com escrita condicional que aceita o mesmo `messageId` (retry não é replay).
+- **Logs JSON com campo `msg`:** os metric filters do CloudWatch (`infra/07`) dependem de `msg: "nok"` (decrypt-validate e enrich) e `msg: "gravado"` (enrich). Renomear quebra as métricas `Ingest/Ok|Nok` e o alarme `ingest-nok-alto`.
+
+Empacotamento: só `decrypt-validate` tem dependência de produção (`ajv`); o `04` faz `npm ci --omit=dev` num diretório em `dist/`. As demais vão como `index.js` puro. IDs da conta, da API (`025tr6hq7g`) e da API Key estão fixos em `infra/config.sh`, `infra/07-observabilidade.sh` e `tools/e2e.js`.
 
 ## Registro em `docs/`
 
