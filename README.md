@@ -1,4 +1,4 @@
-# Pipeline de ingestão de dados de dispositivos móveis
+# Pipeline de ingestão de dados de dispositivos móveis - AWS
 
 Pipeline serverless na AWS que recebe leituras de telemetria **criptografadas** enviadas por dispositivos (rastreadores/celulares), valida, enriquece com o cadastro do dispositivo e grava o resultado no DynamoDB. As mensagens rejeitadas vão para um repositório separado, que permite reprocessá-las.
 
