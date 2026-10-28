@@ -2,6 +2,8 @@
 
 Status: **todas as fases concluídas (0–8).** Recursos **mantidos** por decisão do usuário (2026-10-27).
 
+Diagrama da arquitetura implementada: `docs/arquitetura-pipeline-ingestao.svg` (fonte editável), `.png` e `.pdf` (gerados com o Chrome headless a partir do SVG).
+
 ## Resultado final (Fase 8)
 - `npm test`: 32 testes unitários. `npm run e2e`: 6 cenários contra o ambiente real (válido, inativo, não cadastrado, schema inválido, fora da janela, replay). Todos passaram.
 - Carga (`npm run e2e -- --load 200`, concorrência 10): 148 aceitas e 52 com **429** (rate limit de 10 rps funcionando). **148/148 gravadas**; latência ponta a ponta p50 = 9,8 s, p95 = 34,7 s, máx. 53,6 s. DLQs vazias e alarmes em OK.

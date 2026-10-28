@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1010" viewBox="0 0 1400 1010" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#232F3E"/>
+    </marker>
+    <marker id="aNok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#D13212"/>
+    </marker>
+    <marker id="aOk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1D8102"/>
+    </marker>
+    <style>
+      .svc { font-size: 13px; font-weight: bold; fill: #fff; }
+      .ttl { font-size: 13px; font-weight: bold; fill: #232F3E; }
+      .sub { font-size: 11px; fill: #545B64; }
+      .lbl { font-size: 11px; fill: #232F3E; }
+      .flow { stroke: #232F3E; stroke-width: 2; fill: none; marker-end: url(#a); }
+      .nok { stroke: #D13212; stroke-width: 2; fill: none; marker-end: url(#aNok); }
+      .ok { stroke: #1D8102; stroke-width: 2; fill: none; marker-end: url(#aOk); }
+      .dep { stroke: #545B64; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#a); }
+    </style>
+  </defs>
+
+  <rect width="1400" height="1010" fill="#FFFFFF"/>
+
+  <!-- Título -->
+  <text x="40" y="44" font-size="24" font-weight="bold" fill="#232F3E">Pipeline de ingestão de dados de dispositivos móveis</text>
+  <text x="40" y="68" font-size="13" fill="#545B64">AWS · Região us-east-2 · Node.js 22 (arm64) · provisionado com AWS CLI · prefixo "ingest-"</text>
+
+  <!-- Região -->
+  <rect x="20" y="86" width="1360" height="770" rx="10" fill="none" stroke="#147EBA" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <text x="34" y="104" font-size="12" font-weight="bold" fill="#147EBA">Região AWS us-east-2</text>
+
+  <!-- Caixa: x, y, cor, serviço, título, subtítulo -->
+  <!-- Linha 1: entrada -->
+  <g transform="translate(60,130)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#7D8998" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#7D8998"/><rect y="18" width="200" height="8" fill="#7D8998"/>
+    <text x="10" y="18" class="svc">Dispositivo celular</text>
+    <text x="10" y="48" class="ttl">Origem dos dados</text>
+    <text x="10" y="66" class="sub">AES-256-GCM + RSA (chave</text>
+    <text x="10" y="80" class="sub">pública KMS) + nonce</text>
+  </g>
+  <g transform="translate(320,130)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#E7157B"/><rect y="18" width="200" height="8" fill="#E7157B"/>
+    <text x="10" y="18" class="svc">Amazon API Gateway</text>
+    <text x="10" y="48" class="ttl">Endpoint público</text>
+    <text x="10" y="66" class="sub">REST · API Key · 10 req/s</text>
+    <text x="10" y="80" class="sub">valida envelope ≤ 200 KB</text>
+  </g>
+  <g transform="translate(580,130)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#E7157B"/><rect y="18" width="200" height="8" fill="#E7157B"/>
+    <text x="10" y="18" class="svc">Amazon SQS</text>
+    <text x="10" y="48" class="ttl">Fila de ingestão</text>
+    <text x="10" y="66" class="sub">ingest-queue (+ DLQ)</text>
+    <text x="10" y="80" class="sub">absorve picos de tráfego</text>
+  </g>
+  <g transform="translate(840,130)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#ED7100" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#ED7100"/><rect y="18" width="200" height="8" fill="#ED7100"/>
+    <text x="10" y="18" class="svc">AWS Lambda</text>
+    <text x="10" y="48" class="ttl">Gravação do bruto</text>
+    <text x="10" y="66" class="sub">ingest-raw-writer</text>
+    <text x="10" y="80" class="sub">+ IP, horário, requestId</text>
+  </g>
+  <g transform="translate(1100,130)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#7AA116" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#7AA116"/><rect y="18" width="200" height="8" fill="#7AA116"/>
+    <text x="10" y="18" class="svc">Amazon S3</text>
+    <text x="10" y="48" class="ttl">Dados brutos (raw)</text>
+    <text x="10" y="66" class="sub">ingest-raw-… · cifrado</text>
+    <text x="10" y="80" class="sub">versionado · expira 30 d</text>
+  </g>
+
+  <!-- Linha 2: validação -->
+  <g transform="translate(1100,330)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#E7157B"/><rect y="18" width="200" height="8" fill="#E7157B"/>
+    <text x="10" y="18" class="svc">Amazon SQS</text>
+    <text x="10" y="48" class="ttl">Fila de validação</text>
+    <text x="10" y="66" class="sub">ingest-validate-queue</text>
+    <text x="10" y="80" class="sub">eventos S3 (+ DLQ)</text>
+  </g>
+  <g transform="translate(840,330)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#ED7100" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#ED7100"/><rect y="18" width="200" height="8" fill="#ED7100"/>
+    <text x="10" y="18" class="svc">AWS Lambda</text>
+    <text x="10" y="48" class="ttl">Decifra e valida</text>
+    <text x="10" y="66" class="sub">ingest-decrypt-validate</text>
+    <text x="10" y="80" class="sub">schema · janela · anti-replay</text>
+  </g>
+  <g transform="translate(580,282)">
+    <rect width="200" height="76" rx="8" fill="#fff" stroke="#DD344C" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#DD344C"/><rect y="18" width="200" height="8" fill="#DD344C"/>
+    <text x="10" y="18" class="svc">AWS KMS</text>
+    <text x="10" y="48" class="ttl">Chave de criptografia</text>
+    <text x="10" y="66" class="sub">RSA_4096 · alias/ingest-payload</text>
+  </g>
+  <g transform="translate(580,388)">
+    <rect width="200" height="76" rx="8" fill="#fff" stroke="#C925D1" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#C925D1"/><rect y="18" width="200" height="8" fill="#C925D1"/>
+    <text x="10" y="18" class="svc">Amazon DynamoDB</text>
+    <text x="10" y="48" class="ttl">Controle anti-replay</text>
+    <text x="10" y="66" class="sub">ingest-nonces · TTL 25 h</text>
+  </g>
+
+  <!-- Linha 3: NOK e OK -->
+  <g transform="translate(320,570)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#E7157B"/><rect y="18" width="200" height="8" fill="#E7157B"/>
+    <text x="10" y="18" class="svc">Amazon SQS</text>
+    <text x="10" y="48" class="ttl">Fila de rejeitados (NOK)</text>
+    <text x="10" y="66" class="sub">ingest-nok-queue (+ DLQ)</text>
+    <text x="10" y="80" class="sub">motivo + detalhes do erro</text>
+  </g>
+  <g transform="translate(60,570)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#ED7100" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#ED7100"/><rect y="18" width="200" height="8" fill="#ED7100"/>
+    <text x="10" y="18" class="svc">AWS Lambda</text>
+    <text x="10" y="48" class="ttl">Gravação dos rejeitados</text>
+    <text x="10" y="66" class="sub">ingest-nok-writer</text>
+    <text x="10" y="80" class="sub">copia o envelope do raw</text>
+  </g>
+  <g transform="translate(60,750)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#7AA116" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#7AA116"/><rect y="18" width="200" height="8" fill="#7AA116"/>
+    <text x="10" y="18" class="svc">Amazon S3</text>
+    <text x="10" y="48" class="ttl">Repositório NOK</text>
+    <text x="10" y="66" class="sub">ingest-nok-… · cifrado</text>
+    <text x="10" y="80" class="sub">permite reprocessar · 30 d</text>
+  </g>
+  <g transform="translate(840,570)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#E7157B"/><rect y="18" width="200" height="8" fill="#E7157B"/>
+    <text x="10" y="18" class="svc">Amazon SQS</text>
+    <text x="10" y="48" class="ttl">Fila de aprovados (OK)</text>
+    <text x="10" y="66" class="sub">ingest-ok-queue (+ DLQ)</text>
+    <text x="10" y="80" class="sub">payload já decifrado</text>
+  </g>
+  <g transform="translate(1100,570)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#ED7100" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#ED7100"/><rect y="18" width="200" height="8" fill="#ED7100"/>
+    <text x="10" y="18" class="svc">AWS Lambda</text>
+    <text x="10" y="48" class="ttl">Enriquecimento</text>
+    <text x="10" y="66" class="sub">ingest-enrich</text>
+    <text x="10" y="80" class="sub">valida e anexa cadastro</text>
+  </g>
+  <g transform="translate(1100,750)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#C925D1" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#C925D1"/><rect y="18" width="200" height="8" fill="#C925D1"/>
+    <text x="10" y="18" class="svc">Amazon DynamoDB</text>
+    <text x="10" y="48" class="ttl">Cadastro de dispositivos</text>
+    <text x="10" y="66" class="sub">ingest-devices</text>
+    <text x="10" y="80" class="sub">dono, contrato, áreas…</text>
+  </g>
+  <g transform="translate(840,750)">
+    <rect width="200" height="86" rx="8" fill="#fff" stroke="#C925D1" stroke-width="2"/>
+    <rect width="200" height="26" rx="8" fill="#C925D1"/><rect y="18" width="200" height="8" fill="#C925D1"/>
+    <text x="10" y="18" class="svc">Amazon DynamoDB</text>
+    <text x="10" y="48" class="ttl">Dados finais</text>
+    <text x="10" y="66" class="sub">ingest-data</text>
+    <text x="10" y="80" class="sub">deviceId + timestamp#msgId</text>
+  </g>
+
+  <!-- Fluxo principal -->
+  <path class="flow" d="M260,173 L318,173"/><text x="289" y="164" class="lbl" text-anchor="middle">HTTPS</text><text x="289" y="192" class="lbl" text-anchor="middle">POST</text>
+  <path class="flow" d="M520,173 L578,173"/>
+  <path class="flow" d="M780,173 L838,173"/>
+  <path class="flow" d="M1040,173 L1098,173"/>
+  <path class="flow" d="M1200,216 L1200,328"/><text x="1208" y="276" class="lbl">evento ObjectCreated</text>
+  <path class="flow" d="M1100,373 L1042,373"/>
+  <!-- Dependências da validação -->
+  <path class="dep" d="M840,350 L782,326"/><text x="790" y="314" class="lbl">kms:Decrypt</text>
+  <path class="dep" d="M840,398 L782,422"/><text x="788" y="446" class="lbl">nonce</text>
+
+  <!-- Ramo OK -->
+  <path class="ok" d="M960,416 L960,568"/><text x="968" y="460" class="lbl" fill="#1D8102" font-weight="bold">OK</text>
+  <path class="ok" d="M1040,613 L1098,613"/>
+  <path class="dep" d="M1200,656 L1200,748"/><text x="1208" y="706" class="lbl">consulta</text>
+  <path class="ok" d="M1130,656 L1130,700 L960,700 L960,748"/><text x="980" y="694" class="lbl" fill="#1D8102">grava</text>
+
+  <!-- Ramo NOK -->
+  <path class="nok" d="M900,416 L900,490 L440,490 L440,568"/>
+  <text x="450" y="482" class="lbl" fill="#D13212" font-weight="bold">NOK: envelope, JSON, schema, janela, replay</text>
+  <path class="nok" d="M1270,570 L1270,530 L470,530 L470,568" stroke-dasharray="6 4"/>
+  <text x="560" y="524" class="lbl" fill="#D13212">NOK: dispositivo não cadastrado / inativo</text>
+  <path class="nok" d="M320,613 L262,613"/>
+  <path class="nok" d="M160,656 L160,748"/>
+
+  <!-- Observabilidade -->
+  <g transform="translate(20,880)">
+    <rect width="1100" height="110" rx="10" fill="#FDF0F6" stroke="#E7157B" stroke-width="2"/>
+    <rect width="1100" height="28" rx="10" fill="#E7157B"/><rect y="18" width="1100" height="10" fill="#E7157B"/>
+    <text x="14" y="19" class="svc">Amazon CloudWatch: monitora todas as etapas</text>
+    <text x="14" y="52" class="ttl">Logs: JSON estruturado das 4 Lambdas + access logs do API Gateway (retenção de 14 dias)</text>
+    <text x="14" y="74" class="ttl">Métricas: Ingest/Ok e Ingest/Nok (metric filters) · Dashboard "ingest"</text>
+    <text x="14" y="96" class="ttl">Alarmes: mensagens em DLQ · erros de Lambda · fila parada &gt; 5 min · API 5XX · NOK &gt; 20 em 5 min</text>
+  </g>
+  <g transform="translate(1160,880)">
+    <rect width="220" height="110" rx="10" fill="#fff" stroke="#E7157B" stroke-width="2"/>
+    <rect width="220" height="28" rx="10" fill="#E7157B"/><rect y="18" width="220" height="10" fill="#E7157B"/>
+    <text x="14" y="19" class="svc">Amazon SNS</text>
+    <text x="14" y="54" class="ttl">Notificação de alertas</text>
+    <text x="14" y="74" class="sub">tópico ingest-alerts</text>
+    <text x="14" y="92" class="sub">e-mail (ALARM e OK)</text>
+  </g>
+  <path class="flow" d="M1120,935 L1158,935"/>
+</svg>
